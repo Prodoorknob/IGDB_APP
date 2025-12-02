@@ -1,11 +1,24 @@
 """
-Streamlit App V2: Games Popularity Explorer with S3-based data.
+Streamlit App V2 Backup: Games Popularity Explorer - S3 DEMO VERSION.
 
-This version uses pre-processed data from S3 instead of live IGDB API calls.
-Benefits:
-- No API credentials needed for end users
-- Instant search and recommendations
-- Works on Streamlit Community Cloud (no GPU required)
+This is the BACKUP/DEMO version using SMALLER dataset (~33K games with ratings).
+Uses files with "_S3Implementation" suffix for reliable Streamlit Cloud deployment.
+
+=============================================================================
+TWO IMPLEMENTATIONS:
+=============================================================================
+
+1. DEMO (this app - streamlit_app_V2_backup.py):
+   - Uses: s3_loader_V2_backup.py, content_recommender_V2_backup.py
+   - Data: *_S3Implementation.parquet (~33K games with ratings)
+   - Purpose: Demonstrate S3 bucket integration on Streamlit Cloud
+   - Small file sizes, reliable deployment
+
+2. FULL (streamlit_app_V2.py):
+   - Uses: s3_loader_V2.py, content_recommender_V2.py
+   - Data: games_enriched.parquet, recommendations.parquet (~220K games)
+   - Purpose: Full offline capabilities with all features
+   - Larger files, may need local or powerful cloud
 
 =============================================================================
 DEPLOYMENT TO STREAMLIT COMMUNITY CLOUD:
@@ -17,8 +30,8 @@ DEPLOYMENT TO STREAMLIT COMMUNITY CLOUD:
 
 3. Click "New app" and select:
    - Repository: grantstarnes/h501-group6
-   - Branch: main
-   - Main file path: igdb_puller/streamlit_app/streamlit_app_V2.py
+   - Branch: raj
+   - Main file path: igdb_puller/streamlit_app/streamlit_app_V2_backup.py
 
 4. No secrets needed (data is public on S3)
 
@@ -28,14 +41,14 @@ DEPLOYMENT TO STREAMLIT COMMUNITY CLOUD:
 LOCAL DEVELOPMENT:
 =============================================================================
 
-To run locally with local data (after running data_pipeline_V2.py):
+To run locally with local data (after running data_pipeline_V2_backup.py):
     
     $env:USE_LOCAL_DATA = "true"
-    streamlit run streamlit_app_V2.py
+    streamlit run streamlit_app_V2_backup.py
 
 To run locally with S3 data:
 
-    streamlit run streamlit_app_V2.py
+    streamlit run streamlit_app_V2_backup.py
 
 =============================================================================
 """
@@ -45,14 +58,14 @@ import pandas as pd
 import time
 import plotly.express as px
 
-# Import V2 modules
-from s3_loader_V2 import (
+# Import BACKUP V2 modules (uses _S3Implementation files)
+from s3_loader_V2_backup import (
     load_games,
     search_games,
     check_data_availability,
     get_data_stats,
 )
-from content_recommender_V2 import (
+from content_recommender_V2_backup import (
     get_recommendations,
     format_recommendation_card,
     get_game_display_info,
@@ -64,8 +77,8 @@ from content_recommender_V2 import (
 # =============================================================================
 
 st.set_page_config(
-    page_title="Everything Games!",
-    page_icon="",
+    page_title="Everything Games! (S3 Demo)",
+    page_icon="🎮",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
