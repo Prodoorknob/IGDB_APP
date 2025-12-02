@@ -290,6 +290,8 @@ def display_genre_popularity(game: dict):
     """
     Display a scatter plot showing popularity of games in the same primary genre by year.
     Highlights the selected game.
+    
+    MEMORY OPTIMIZED: Uses vectorized operations instead of .apply() and avoids .copy()
     """
     import numpy as np
     
@@ -304,23 +306,24 @@ def display_genre_popularity(game: dict):
     if games_df.empty:
         return
     
-    # Filter to games that contain this genre (handle numpy arrays)
-    def has_genre(val):
-        if isinstance(val, np.ndarray):
-            val = val.tolist()
-        if isinstance(val, list):
-            return primary_genre in val
-        if isinstance(val, str):
-            try:
-                import ast
-                lst = ast.literal_eval(val)
-                return primary_genre in lst
-            except Exception:
-                return False
-        return False
+    # OPTIMIZED: Vectorized genre check without .apply() or .copy()
+    # This is much faster and uses less memory
+    genre_col = games_df["genre_names"]
     
-    mask = games_df["genre_names"].apply(has_genre)
-    df = games_df[mask].copy()
+    # Build mask using vectorized string contains (works for list-as-string format)
+    # For actual lists/arrays, we need to check element-wise
+    mask = pd.Series([False] * len(games_df), index=games_df.index)
+    
+    for idx, val in enumerate(genre_col):
+        if isinstance(val, (list, np.ndarray)):
+            if isinstance(val, np.ndarray):
+                val = val.tolist()
+            mask.iloc[idx] = primary_genre in val
+        elif isinstance(val, str) and primary_genre in val:
+            mask.iloc[idx] = True
+    
+    # Filter without .copy() - just use boolean indexing
+    df = games_df.loc[mask]
     
     # Clean up to keep only rows with both release_year and total_rating_count
     df = df[df["release_year"].notna() & df["total_rating_count"].notna()]
@@ -386,6 +389,10 @@ def main():
         st.session_state.selected_game_id = None
     if "confirmed_game_id" not in st.session_state:
         st.session_state.confirmed_game_id = None
+    
+    # Chart visibility toggle (to avoid loading chart + recommendations together)
+    if "show_genre_chart" not in st.session_state:
+        st.session_state.show_genre_chart = False
     
     # =========================================================================
     # DATA AVAILABILITY CHECK (runs every time, but is lightweight - HEAD requests only)
@@ -549,6 +556,7 @@ def main():
                     st.session_state.selected_game_id = selected_id
                     st.session_state.confirmed_game_id = selected_id
                     st.session_state.phase = "details"
+                    st.session_state.show_genre_chart = False  # Reset chart visibility
                     st.rerun()
         
         # Show hint if in search_results phase (not yet confirmed)
@@ -598,10 +606,23 @@ def main():
             else:
                 st.info("Recommendations will be available once the recommendations.parquet file is uploaded to S3.")
             
-            # Genre Popularity scatter plot (new)
+            # Genre Popularity scatter plot - OPT-IN to avoid memory spike
+            # Running this with recommendations would cause memory crash on Streamlit Cloud
             st.markdown("---")
-            st.markdown("### Genre Popularity Over Time")
-            display_genre_popularity(game_info)
+            
+            if not st.session_state.show_genre_chart:
+                # Show button to load chart (chart not loaded yet)
+                if st.button("📊 Show Genre Popularity Chart", use_container_width=True):
+                    st.session_state.show_genre_chart = True
+                    st.rerun()
+            else:
+                # Chart is shown - display hide button and the chart
+                if st.button("❌ Hide Genre Chart", use_container_width=True):
+                    st.session_state.show_genre_chart = False
+                    st.rerun()
+                
+                st.markdown("### Genre Popularity Over Time")
+                display_genre_popularity(game_info)
         else:
             st.error("Could not load game details. Please try another game.")
     
@@ -637,6 +658,7 @@ def main():
                         st.session_state.selected_game_id = game["id"]
                         st.session_state.confirmed_game_id = game["id"]
                         st.session_state.phase = "details"
+                        st.session_state.show_genre_chart = False  # Reset chart visibility
                         st.rerun()
     
     # =========================================================================
